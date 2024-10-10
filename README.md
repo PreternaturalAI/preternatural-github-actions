@@ -1,34 +1,30 @@
 # Preternatural Build Action
 
-This GitHub Action allows you to run Preternatural CLI commands on your repositories.
+This GitHub Action allows you to run the Preternatural CLI build command on your repositories with support for a specific Xcode version.
 
 ## Features
 
-- Run Preternatural `build` and `update` commands
-- Specify Xcode version for your builds
+- Run Preternatural `build` command
+- Specify Xcode version for your build
 - Configure build settings such as derived data path and platform targets
-- Verify update process
-- Choose between debug and release configurations
+- Version-specific caching of derived data
 
 ## Usage
 
 To use this action in your workflow, add the following step:
 
 ```yaml
-- name: Run Preternatural Command
-  uses: PreternaturalAI/github-action@main
+- name: Run Preternatural Build
+  uses: PreternaturalAI/github-action/preternatural-build@main
   with:
-    command: build  # or 'update'
+    xcode-version: '16'
 ```
 
 ### Inputs
 
-- `command`: The Preternatural command to run. Supported values are `build` and `update`.
+- `xcode-version`: (Required) Xcode version to use.
 - `derived_data_path`: (Optional) The path to the derived data folder.
-- `build_all_platforms`: (Optional) Set to 'true' to build for all supported platforms.
-- `verify`: (Optional) Set to 'true' to verify the update process (for update command).
-- `configuration`: (Optional) Build configuration. Can be 'debug' or 'release'. Defaults to 'release'.
-- `xcode-version`: (Optional) Specify the Xcode version to use. Defaults to 'latest-stable'.
+- `build_all_platforms`: (Optional) Set to 'true' to build for all supported platforms. Defaults to 'false'.
 
 ## Examples
 
@@ -36,36 +32,25 @@ To use this action in your workflow, add the following step:
 
 ```yaml
 - name: Run Preternatural Build
-  uses: PreternaturalAI/github-action@main
+  uses: PreternaturalAI/github-action/preternatural-build@main
   with:
-    command: build
+    xcode-version: '16'
 ```
 
-### Update Command with Verification
-
-```yaml
-- name: Run Preternatural Update
-  uses: PreternaturalAI/github-action@main
-  with:
-    command: update
-    verify: 'true'
-```
-
-### Build with Specific Xcode Version and Configuration
+### Build with Specific Configuration and All Platforms
 
 ```yaml
 - name: Run Preternatural Build
-  uses: PreternaturalAI/github-action@main
+  uses: PreternaturalAI/github-action/preternatural-build@main
   with:
-    command: build
-    xcode-version: '14.3.1'
-    configuration: 'debug'
+    xcode-version: '16'
     build_all_platforms: 'true'
+    derived_data_path: '~/Desktop/derived_data'
 ```
 
 ## Full Workflow Example
 
-Here's a comprehensive example of how to use this action in a workflow, including caching and error handling:
+Here's an example of how to use this action in a workflow:
 
 ```yaml
 name: Preternatural Build
@@ -79,39 +64,11 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v3
-
-    - name: Cache derived data
-      uses: actions/cache@v3
-      with:
-        path: ~/Library/Developer/Xcode/DerivedData
-        key: ${{ runner.os }}-derived-data
-        restore-keys: |
-          ${{ runner.os }}-derived-data
-
+    
     - name: Run Preternatural Build
-      id: build
-      continue-on-error: true
-      uses: PreternaturalAI/github-action@main
+      uses: PreternaturalAI/github-action/preternatural-build@main
       with:
-        command: build
-        derived_data_path: ~/Library/Developer/Xcode/DerivedData
-        xcode-version: 'latest-stable'
-        build_all_platforms: 'true'
-
-    - name: Clear derived data and retry on failure
-      if: steps.build.outcome == 'failure'
-      run: |
-        rm -rf ~/Library/Developer/Xcode/DerivedData
-        echo "Cleared derived data. Retrying build..."
-
-    - name: Retry Preternatural Build
-      if: steps.build.outcome == 'failure'
-      uses: PreternaturalAI/github-action@main
-      with:
-        command: build
-        derived_data_path: ~/Library/Developer/Xcode/DerivedData
-        xcode-version: 'latest-stable'
-        build_all_platforms: 'true'
+        xcode-version: '16'
 ```
 
 This workflow does the following:
@@ -119,16 +76,13 @@ This workflow does the following:
 1. Triggers on push events for all branches.
 2. Sets up the macOS environment.
 3. Checks out the repository.
-4. Sets up caching for the derived data to speed up subsequent builds.
-5. Runs the Preternatural build command with specific options:
-   - Uses the latest stable Xcode version
+4. Runs the Preternatural build command with the following options:
+   - Uses Xcode version 16
    - Builds for all platforms
-   - Specifies a derived data path
-6. If the build fails, it clears the derived data and retries the build.
-
-This example showcases error handling and optimization techniques to ensure robust builds in your CI/CD pipeline.
 
 ## Notes
 
 - The action automatically sets up the specified Xcode version before running the Preternatural command.
+- Derived data is cached separately for each Xcode version to optimize build times.
+- The action uses Homebrew to install the Preternatural CLI.
 - For detailed information on Xcode version specification, refer to the [setup-xcode action documentation](https://github.com/marketplace/actions/setup-xcode-version).
