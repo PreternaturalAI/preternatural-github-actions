@@ -11,9 +11,6 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: true
-  architectures:
-    description: 'Comma-separated list of architectures to build for (e.g., "arm64,x86_64")'
-    required: false
   configuration:
     description: 'Build configuration (debug or release)'
     required: false
@@ -51,9 +48,6 @@ runs:
         fi
         if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
           COMMAND="$COMMAND --build-all-platforms"
-        fi
-        if [ -n "${{ inputs.architectures }}" ]; then
-          COMMAND="$COMMAND --architectures '${{ inputs.architectures }}'"
         fi
         if [ -n "${{ inputs.configuration }}" ]; then
           COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
@@ -96,9 +90,6 @@ runs:
         fi
         if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
           COMMAND="$COMMAND --build-all-platforms"
-        fi
-        if [ -n "${{ inputs.architectures }}" ]; then
-          COMMAND="$COMMAND --architectures '${{ inputs.architectures }}'"
         fi
         if [ -n "${{ inputs.configuration }}" ]; then
           COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
@@ -143,10 +134,37 @@ runs:
           exit 1
         fi
 
-    - name: Upload xcactivity logs
+    - name: Install xclogparser
+      if: failure()
+      shell: bash
+      run: |
+        brew install xclogparser
+
+    - name: Convert logs to JSON and print
+      if: failure()
+      shell: bash
+      run: |
+        mkdir -p ./json_logs
+        for log in ./artifacts/*.xcactivitylog; do
+          json_file="./json_logs/$(basename "$log" .xcactivitylog).json"
+          xclogparser parse --file "$log" --output "$json_file"
+          echo "Contents of $json_file:"
+          cat "$json_file"
+          echo "--------------------------------"
+        done
+
+    - name: Upload xcactivity logs (JSON)
       if: failure()
       uses: actions/upload-artifact@v3
       with:
-        name: xcactivity-logs
+        name: xcactivity-logs-json
+        path: ./json_logs/*.json
+        if-no-files-found: error
+
+    - name: Upload xcactivity logs (Raw)
+      if: failure()
+      uses: actions/upload-artifact@v3
+      with:
+        name: xcactivity-logs-raw
         path: ./artifacts/*.xcactivitylog
         if-no-files-found: error

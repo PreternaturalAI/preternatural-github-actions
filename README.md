@@ -6,7 +6,7 @@ This GitHub Action allows you to run the Preternatural CLI build command on your
 
 - Run Preternatural `build` command
 - Specify Xcode version for your build
-- Configure build settings such as derived data path, architectures and configuration
+- Configure build settings such as derived data path and configuration
 - Version-specific caching of derived data
 
 ## Usage
@@ -16,7 +16,6 @@ This GitHub Action allows you to run the Preternatural CLI build command on your
 - `xcode-version`: (Required) Xcode version to use.
 - `derived_data_path`: (Optional) The path to the derived data folder.
 - `build_all_platforms`: (Optional) Set to 'true' to build for all supported platforms. Defaults to 'false'.
-- `architectures`: (Optional) Comma-separated list of architectures to build for (e.g., 'arm64,x86_64').
 - `configuration`: (Optional) Build configuration (debug or release). Defaults to 'debug'.
 
 ## Examples
@@ -30,7 +29,6 @@ This GitHub Action allows you to run the Preternatural CLI build command on your
     xcode-version: '16'
     build_all_platforms: 'true'
     derived_data_path: '~/Desktop/derived_data'
-    architectures: 'arm64,x86_64'
     configuration: 'release'
 ```
 
@@ -57,7 +55,6 @@ jobs:
         xcode-version: '16'
         build_all_platforms: 'true'
         derived_data_path: '~/Desktop/derived_data'
-        architectures: 'arm64,x86_64'
         configuration: 'release'
 ```
 
@@ -70,7 +67,6 @@ This workflow does the following:
    - Uses Xcode version 16
    - Builds for all platforms
    - Uses a custom derived data path
-   - Builds for the `arm64` and `x86_64` architectures
    - Builds in release configuration
 
 ## Notes
