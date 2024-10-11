@@ -6,38 +6,22 @@ This GitHub Action allows you to run the Preternatural CLI build command on your
 
 - Run Preternatural `build` command
 - Specify Xcode version for your build
-- Configure build settings such as derived data path and platform targets
+- Configure build settings such as derived data path, architectures and configuration
 - Version-specific caching of derived data
 
 ## Usage
-
-To use this action in your workflow, add the following step:
-
-```yaml
-- name: Run Preternatural Build
-  uses: PreternaturalAI/github-action/preternatural-build@main
-  with:
-    xcode-version: '16'
-```
 
 ### Inputs
 
 - `xcode-version`: (Required) Xcode version to use.
 - `derived_data_path`: (Optional) The path to the derived data folder.
 - `build_all_platforms`: (Optional) Set to 'true' to build for all supported platforms. Defaults to 'false'.
+- `architectures`: (Optional) Comma-separated list of architectures to build for (e.g., 'arm64,x86_64').
+- `configuration`: (Optional) Build configuration (debug or release). Defaults to 'debug'.
 
 ## Examples
 
-### Basic Build Command
-
-```yaml
-- name: Run Preternatural Build
-  uses: PreternaturalAI/github-action/preternatural-build@main
-  with:
-    xcode-version: '16'
-```
-
-### Build with Specific Configuration and All Platforms
+### Build command with all platforms and custom derived data path
 
 ```yaml
 - name: Run Preternatural Build
@@ -46,6 +30,8 @@ To use this action in your workflow, add the following step:
     xcode-version: '16'
     build_all_platforms: 'true'
     derived_data_path: '~/Desktop/derived_data'
+    architectures: 'arm64,x86_64'
+    configuration: 'release'
 ```
 
 ## Full Workflow Example
@@ -69,6 +55,10 @@ jobs:
       uses: PreternaturalAI/github-action/preternatural-build@main
       with:
         xcode-version: '16'
+        build_all_platforms: 'true'
+        derived_data_path: '~/Desktop/derived_data'
+        architectures: 'arm64,x86_64'
+        configuration: 'release'
 ```
 
 This workflow does the following:
@@ -79,6 +69,9 @@ This workflow does the following:
 4. Runs the Preternatural build command with the following options:
    - Uses Xcode version 16
    - Builds for all platforms
+   - Uses a custom derived data path
+   - Builds for the `arm64` and `x86_64` architectures
+   - Builds in release configuration
 
 ## Notes
 

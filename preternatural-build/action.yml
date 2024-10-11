@@ -11,6 +11,13 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: true
+  architectures:
+    description: 'Comma-separated list of architectures to build for (e.g., "arm64,x86_64")'
+    required: false
+  configuration:
+    description: 'Build configuration (debug or release)'
+    required: false
+    default: 'debug'
 runs:
   using: 'composite'
   steps:
@@ -44,6 +51,12 @@ runs:
         fi
         if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
           COMMAND="$COMMAND --build-all-platforms"
+        fi
+        if [ -n "${{ inputs.architectures }}" ]; then
+          COMMAND="$COMMAND --architectures '${{ inputs.architectures }}'"
+        fi
+        if [ -n "${{ inputs.configuration }}" ]; then
+          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
         fi
         echo "Executing command: $COMMAND"
         eval $COMMAND
@@ -83,6 +96,12 @@ runs:
         fi
         if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
           COMMAND="$COMMAND --build-all-platforms"
+        fi
+        if [ -n "${{ inputs.architectures }}" ]; then
+          COMMAND="$COMMAND --architectures '${{ inputs.architectures }}'"
+        fi
+        if [ -n "${{ inputs.configuration }}" ]; then
+          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
         fi
         echo "Retrying command: $COMMAND"
         eval $COMMAND
