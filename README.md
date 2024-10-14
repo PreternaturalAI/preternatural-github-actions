@@ -42,6 +42,11 @@ on:
   push:
     branches:
       - '**'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+  
 jobs:
   build:
     runs-on: macos-latest
@@ -53,8 +58,6 @@ jobs:
       uses: PreternaturalAI/github-action/preternatural-build@main
       with:
         xcode-version: '16'
-        build_all_platforms: 'true'
-        derived_data_path: '~/Desktop/derived_data'
         configuration: 'release'
 ```
 
@@ -68,6 +71,8 @@ This workflow does the following:
    - Builds for all platforms
    - Uses a custom derived data path
    - Builds in release configuration
+   
+The concurrency configuration ensures that only one workflow runs at a time for each branch, cancelling any in-progress workflows when a new one is triggered on the same branch.
 
 ## Notes
 
