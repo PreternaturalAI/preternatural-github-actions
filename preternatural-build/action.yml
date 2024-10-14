@@ -28,7 +28,7 @@ runs:
       uses: actions/cache@v3
       if: ${{ !env.ACT }} # Skipping when run locally.
       with:
-        path: ${{ inputs.derived_data_path || '$HOME/Library/Developer/Xcode/DerivedData' }}
+        path: ${{ inputs.derived_data_path || '~/Library/Developer/Xcode/DerivedData' }}
         key: ${{ runner.os }}-derived-data-xcode-${{ inputs.xcode-version }}
         restore-keys: |
           ${{ runner.os }}-derived-data-xcode-${{ inputs.xcode-version }}
