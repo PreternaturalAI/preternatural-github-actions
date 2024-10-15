@@ -1,82 +1,54 @@
-# Preternatural Build Action
+# Preternatural GitHub Actions
 
-This GitHub Action allows you to run the Preternatural CLI build command on your repositories with support for a specific Xcode version.
+This repository contains GitHub Actions for use with [Preternatural CLI](https://github.com/PreternaturalAI/CLI-release).
 
-## Features
 
-- Run Preternatural `build` command
-- Specify Xcode version for your build
-- Configure build settings such as derived data path and configuration
-- Version-specific caching of derived data
+## Preternatural Build Action
 
-## Usage
+This action allows you to run the Preternatural CLI build command on your repositories with support for a specific Xcode version.
 
 ### Inputs
 
 - `xcode-version`: (Required) Xcode version to use.
 - `derived_data_path`: (Optional) The path to the derived data folder.
-- `build_all_platforms`: (Optional) Set to 'true' to build for all supported platforms. Defaults to 'false'.
-- `configuration`: (Optional) Build configuration (debug or release). Defaults to 'debug'.
+- `build_all_platforms`: (Optional) Set to `true` to build for all supported platforms. Defaults to `false`.
+- `configuration`: (Optional) Build configuration (debug or release). Defaults to `debug`.
 
-## Examples
-
-### Build command with all platforms and custom derived data path
+#### Example Usage
 
 ```yaml
-- name: Run Preternatural Build
-  uses: PreternaturalAI/github-action/preternatural-build@main
-  with:
-    xcode-version: '16'
-    build_all_platforms: 'true'
-    derived_data_path: '~/Desktop/derived_data'
-    configuration: 'release'
+name: Run Preternatural Build
+uses: PreternaturalAI/github-action/preternatural-build@main
+with:
+  xcode-version: '16'
+  build_all_platforms: 'false'
+  derived_data_path: '~/Library/Developer/Xcode/DerivedData'
+  configuration: 'release'
 ```
 
-## Full Workflow Example
+## Preternatural Archive & Notarize Action
 
-Here's an example of how to use this action in a workflow:
+This action allows you to archive and notarize a MacOS application using the Preternatural CLI.
+
+### Inputs
+
+- `xcode-version`: (Required) Xcode version to use.
+- `notarization_username`: (Required) Your Apple ID email.
+- `notarization_password`: (Required) App specific password to use for notarization. See [here](https://support.apple.com/en-us/102654) for steps on how to create one.
+- `notarization_team_id`: (Optional) App Store Connect Team ID for notarization. If not provided, this will be automatically extracted from the Xcode project. The Team ID provided here should match the Team ID of the certificate.
+- `build_certificate_base64`: (Required) Your Apple Developer ID Certificate encoded in base64. Follow the steps in [this tutorial](https://localazy.com/blog/how-to-automatically-sign-macos-apps-using-github-actions) to get the base64 string of your certificate.
+- `p12_password`: (Required) Password for the `Developer ID Application` certificate.
+
+#### Example Usage
 
 ```yaml
-name: Preternatural Build
-on:
-  push:
-    branches:
-      - '**'
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-  
-jobs:
-  build:
-    runs-on: macos-latest
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-    
-    - name: Run Preternatural Build
-      uses: PreternaturalAI/github-action/preternatural-build@main
-      with:
-        xcode-version: '16'
-        configuration: 'release'
+name: Archive and Notarize MacOS App
+uses: PreternaturalAI/github-action/preternatural-archive@main
+with:
+  xcode-version: '16'
+  notarization_username: ${{ secrets.NOTARIZATION_USERNAME }}
+  notarization_password: ${{ secrets.NOTARIZATION_PASSWORD }}
+  notarization_team_id: ${{ secrets.NOTARIZATION_TEAM_ID }}
+  build_certificate_base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+  p12_password: ${{ secrets.P12_PASSWORD }}
 ```
-
-This workflow does the following:
-
-1. Triggers on push events for all branches.
-2. Sets up the macOS environment.
-3. Checks out the repository.
-4. Runs the Preternatural build command with the following options:
-   - Uses Xcode version 16
-   - Builds for all platforms
-   - Uses a custom derived data path
-   - Builds in release configuration
-   
-The concurrency configuration ensures that only one workflow runs at a time for each branch, cancelling any in-progress workflows when a new one is triggered on the same branch.
-
-## Notes
-
-- The action automatically sets up the specified Xcode version before running the Preternatural command.
-- Derived data is cached separately for each Xcode version to optimize build times.
-- The action uses Homebrew to install the Preternatural CLI.
-- For detailed information on Xcode version specification, refer to the [setup-xcode action documentation](https://github.com/marketplace/actions/setup-xcode-version).
