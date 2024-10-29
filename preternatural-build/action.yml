@@ -5,16 +5,16 @@ inputs:
     description: 'The path to the derived data folder'
     required: false
   platforms:
-    description: 'Target platforms (comma-separated: ios,macos,tvos,watchos,visionos,all)'
+    description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
     required: false
-    default: 'macos'
+    default: '["macOS"]'
   xcode-version:
     description: 'Xcode version to use'
     required: true
-  configuration:
-    description: 'Build configuration (debug or release)'
+  configurations:
+    description: 'Build configurations (array of: debug, release)'
     required: false
-    default: 'debug'
+    default: '["debug", "release"]'
 runs:
   using: 'composite'
   steps:
@@ -46,12 +46,19 @@ runs:
         if [ -n "${{ inputs.derived_data_path }}" ]; then
           COMMAND="$COMMAND --derived-data-path '${{ inputs.derived_data_path }}'"
         fi
-        if [ -n "${{ inputs.platforms }}" ]; then
-          COMMAND="$COMMAND --platforms '${{ inputs.platforms }}'"
+
+        # Handle platforms array
+        PLATFORMS="${{ join(fromJSON(inputs.platforms), ',') }}"
+        if [ -n "$PLATFORMS" ]; then
+          COMMAND="$COMMAND --platforms '$PLATFORMS'"
         fi
-        if [ -n "${{ inputs.configuration }}" ]; then
-          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
+        
+        # Handle configurations array
+        CONFIGS="${{ join(fromJSON(inputs.configurations), ',') }}"
+        if [ -n "$CONFIGS" ]; then
+          COMMAND="$COMMAND --configurations '$CONFIGS'"
         fi
+
         echo "Executing command: $COMMAND"
         eval $COMMAND
       continue-on-error: true
@@ -88,12 +95,19 @@ runs:
         if [ -n "${{ inputs.derived_data_path }}" ]; then
           COMMAND="$COMMAND --derived-data-path '${{ inputs.derived_data_path }}'"
         fi
-        if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
-          COMMAND="$COMMAND --build-all-platforms"
+
+        # Handle platforms array
+        PLATFORMS="${{ join(fromJSON(inputs.platforms), ',') }}"
+        if [ -n "$PLATFORMS" ]; then
+          COMMAND="$COMMAND --platforms '$PLATFORMS'"
         fi
-        if [ -n "${{ inputs.configuration }}" ]; then
-          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
+        
+        # Handle configurations array
+        CONFIGS="${{ join(fromJSON(inputs.configurations), ',') }}"
+        if [ -n "$CONFIGS" ]; then
+          COMMAND="$COMMAND --configurations '$CONFIGS'"
         fi
+
         echo "Retrying command: $COMMAND"
         eval $COMMAND
         
