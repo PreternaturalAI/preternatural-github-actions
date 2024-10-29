@@ -11,10 +11,9 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: true
-  configuration:
-    description: 'Build configuration (debug or release)'
-    required: false
-    default: 'debug'
+  configurations:
+    description: 'Build configurations (comma-separated: debug,release)'
+    default: 'debug,release'
 runs:
   using: 'composite'
   steps:
@@ -49,8 +48,8 @@ runs:
         if [ -n "${{ inputs.platforms }}" ]; then
           COMMAND="$COMMAND --platforms '${{ inputs.platforms }}'"
         fi
-        if [ -n "${{ inputs.configuration }}" ]; then
-          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
+        if [ -n "${{ inputs.configurations }}" ]; then
+          COMMAND="$COMMAND --configurations '${{ inputs.configurations }}'"
         fi
         echo "Executing command: $COMMAND"
         eval $COMMAND
@@ -91,8 +90,8 @@ runs:
         if [ "${{ inputs.build_all_platforms }}" == "true" ]; then
           COMMAND="$COMMAND --build-all-platforms"
         fi
-        if [ -n "${{ inputs.configuration }}" ]; then
-          COMMAND="$COMMAND --configuration '${{ inputs.configuration }}'"
+        if [ -n "${{ inputs.configurations }}" ]; then
+          COMMAND="$COMMAND --configurations '${{ inputs.configurations }}'"
         fi
         echo "Retrying command: $COMMAND"
         eval $COMMAND
