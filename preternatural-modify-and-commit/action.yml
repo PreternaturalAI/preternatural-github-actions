@@ -1,0 +1,39 @@
+name: 'Preternatural Modify Action'
+description: 'Run Preternatural modify to..'
+
+inputs:
+  file-path:
+    description: 'Path to the file to modify'
+    required: true
+  github-token:
+    description: 'GitHub token with write permissions'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+        
+    - name: Configure Git
+      shell: bash
+      run: |
+        git config --global user.name 'Preternatural Github Action'
+        git config --global user.email 'preternatural-action@github.com'
+
+        git remote set-url origin "https://x-access-token:${{ inputs.github-token }}@github.com/${{ github.repository }}.git"
+
+        
+    - name: Modify file
+      shell: bash
+      run: |
+        echo "#New content" > ${{ inputs.file-path }}
+        
+    - name: Commit and push changes
+      shell: bash
+      run: |
+        # Get the current branch name
+        BRANCH_NAME=${GITHUB_REF#refs/heads/}
+        git add ${{ inputs.file-path }}
+        git commit -m "Auto-update by GitHub Action"
+        git push origin HEAD:${BRANCH_NAME}
