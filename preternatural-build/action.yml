@@ -189,7 +189,7 @@ runs:
         mkdir -p ./json_logs
         for log in ./artifacts/*.xcactivitylog; do
           json_file="./json_logs/$(basename "$log" .xcactivitylog).json"
-          xclogparser parse --file "$log" --output "$json_file"
+          xclogparser parse --file "$log" --reporter json --output "$json_file"
           echo "Contents of $json_file:"
           cat "$json_file"
           echo "--------------------------------"
