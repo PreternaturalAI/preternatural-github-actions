@@ -138,12 +138,6 @@ runs:
           if [[ -n "\${CONFIGURATIONS}" ]]; then
             cmd="\$cmd --configurations \${CONFIGURATIONS}"
           fi
-          if [[ -n "\${BUILD_DIR}" ]]; then
-            cmd="\$cmd --symroot \${BUILD_DIR}"
-          fi
-          if [[ -n "\${SCHEME}" ]]; then
-            cmd="\$cmd --scheme \${SCHEME}"
-          fi
           echo "\$cmd"
         }
         EOF
