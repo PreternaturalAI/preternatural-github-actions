@@ -61,62 +61,7 @@ runs:
 
         echo "Executing command: $COMMAND"
         eval $COMMAND
-      continue-on-error: true
-    - name: Clear caches and retry build
-      id: retry_build
-      if: steps.build.outcome == 'failure'
-      shell: bash
-      run: |
-        echo "Initial build failed. Clearing caches and retrying..."
         
-        # Allow individual commands to fail without stopping the script
-        set +e
-        
-        # Clear SwiftPM caches
-        if [ "${{ !env.ACT }}" == "true" ]; then
-          rm -rf $HOME/Library/org.swift.swiftpm
-          rm -rf $HOME/Library/Caches/org.swift.swiftpm
-        fi
-        
-        # Force package update
-        rm -rf .build
-        swift package update
-        swift package resolve
-        
-        # Clear derived data
-        if [ -n "${{ inputs.derived_data_path }}" ]; then
-          rm -rf "${{ inputs.derived_data_path }}"
-        else
-          rm -rf $HOME/Library/Developer/Xcode/DerivedData
-        fi
-        
-        # Retry build
-        COMMAND="preternatural build"
-        if [ -n "${{ inputs.derived_data_path }}" ]; then
-          COMMAND="$COMMAND --derived-data-path '${{ inputs.derived_data_path }}'"
-        fi
-
-        # Handle platforms array
-        PLATFORMS="${{ join(fromJSON(inputs.platforms), ',') }}"
-        if [ -n "$PLATFORMS" ]; then
-          COMMAND="$COMMAND --platforms '$PLATFORMS'"
-        fi
-        
-        # Handle configurations array
-        CONFIGS="${{ join(fromJSON(inputs.configurations), ',') }}"
-        if [ -n "$CONFIGS" ]; then
-          COMMAND="$COMMAND --configurations '$CONFIGS'"
-        fi
-
-        echo "Retrying command: $COMMAND"
-        eval $COMMAND
-        
-        # Capture the exit code of the last command (the build retry)
-        BUILD_EXIT_CODE=$?
-        
-        # Exit with the build's exit code
-        exit $BUILD_EXIT_CODE
-    
     - name: Find and copy all xcactivity logs
       if: failure()
       shell: bash
