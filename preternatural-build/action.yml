@@ -1,76 +1,178 @@
 name: 'Preternatural Build Action'
 description: 'Run Preternatural build command on repositories with a specified Xcode version'
 inputs:
-  derived_data_path:
-    description: 'The path to the derived data folder'
+  xcode-version:
+    description: 'Xcode version to use'
     required: false
+    default: 'latest-stable'
   platforms:
     description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
     required: false
     default: '["macOS"]'
-  xcode-version:
-    description: 'Xcode version to use'
-    required: true
   configurations:
     description: 'Build configurations (array of: debug, release)'
     required: false
     default: '["debug", "release"]'
+  derived_data_path:
+    description: 'The path to the derived data folder'
+    required: false
+    default: DerivedData/ProjectBuild
+
 runs:
   using: 'composite'
   steps:
-    - name: Install Preternatural
-      if: ${{ !env.ACT }} # Skipping when run locally.
-      shell: bash
-      run: |
-        brew tap PreternaturalAI/preternatural
-        brew install preternatural
-    - name: Cache derived data
-      uses: actions/cache@v3
-      if: ${{ !env.ACT }} # Skipping when run locally.
-      with:
-        path: ${{ inputs.derived_data_path || '~/Library/Developer/Xcode/DerivedData' }}
-        key: ${{ runner.os }}-derived-data-xcode-${{ inputs.xcode-version }}
-        restore-keys: |
-          ${{ runner.os }}-derived-data-xcode-${{ inputs.xcode-version }}
     - name: Setup Xcode
       uses: maxim-lobanov/setup-xcode@v1
       with:
         xcode-version: ${{ inputs.xcode-version }}
-      
-    - name: Execute Preternatural build command
+
+    - name: Install Preternatural
+      if: ${{ !env.ACT }}
+      shell: bash
+      run: |
+        brew tap PreternaturalAI/preternatural
+        brew install preternatural
+
+    - name: Generate project cache key
+      id: cache-key
+      shell: bash
+      run: |
+        if ls *.xcodeproj/project.pbxproj 1> /dev/null 2>&1; then
+          echo "Found Xcode project"
+          PROJECT_NAME=$(basename *.xcodeproj .xcodeproj)
+          HASH=$(shasum *.xcodeproj/project.pbxproj | cut -d' ' -f1)
+        elif ls *.xcworkspace/contents.xcworkspacedata 1> /dev/null 2>&1; then
+          echo "Found Xcode workspace"
+          PROJECT_NAME=$(basename *.xcworkspace .xcworkspace)
+          HASH=$(shasum *.xcworkspace/contents.xcworkspacedata | cut -d' ' -f1)
+        elif [ -f "Package.swift" ]; then
+          echo "Found Swift package"
+          PROJECT_NAME=$(swift package describe --type json | awk '/^{/,/^}/' 2>/dev/null | jq -r '.name')
+          if [ -f "Package.resolved" ]; then
+            HASH=$(shasum Package.resolved | cut -d' ' -f1)
+          else
+            HASH=$(shasum Package.swift | cut -d' ' -f1)
+          fi
+        else
+          echo "No recognized project structure found"
+          PROJECT_NAME="unknown"
+          HASH=$(date +%s | shasum | cut -d' ' -f1)
+        fi
+        
+        echo "project-name=$PROJECT_NAME" >> $GITHUB_OUTPUT
+        
+        PLATFORMS_KEY=$(echo '${{ inputs.platforms }}' | tr -d '[]"' | sed 's/, /-/g' | sed 's/,/-/g')
+        echo "platforms-key=$PLATFORMS_KEY" >> $GITHUB_OUTPUT
+        echo "package-hash=$HASH" >> $GITHUB_OUTPUT
+
+    - name: Cache project derived data
+      id: cache-derived-data
+      uses: actions/cache@v4
+      if: ${{ !env.ACT }}
+      with:
+        path: ${{ github.workspace }}/${{ inputs.derived_data_path }}
+        key: ${{ steps.cache-key.outputs.project-name }}-derived-data-v1-${{ runner.os }}-xcode${{ inputs.xcode-version }}-platforms-${{ steps.cache-key.outputs.platforms-key }}-${{ steps.cache-key.outputs.package-hash }}
+        restore-keys: |
+          ${{ steps.cache-key.outputs.project-name }}-derived-data-v1-${{ runner.os }}-xcode${{ inputs.xcode-version }}-platforms-
+    
+    - name: Debug Cache Status
+      if: ${{ !env.ACT }}
+      shell: bash
+      run: |
+        echo "==== Cache Status ===="
+        
+        echo "Project Cache:"
+        echo "Cache key components:"
+        echo "- Runner OS: ${{ runner.os }}"
+        echo "- Xcode Version: ${{ inputs.xcode-version }}"
+        echo "- Platforms: ${{ inputs.platforms }}"
+        echo "- Package.resolved hash: ${{ hashFiles('Package.resolved') }}"
+        echo "- Package.swift hash: ${{ hashFiles('Package.swift') }}"
+        
+        PROJECT_DERIVED_DATA=${{ github.workspace }}/${{ inputs.derived_data_path }}
+        echo "Project derived data path: $PROJECT_DERIVED_DATA"
+        
+        if [ "${{ steps.cache-derived-data.outputs.cache-hit }}" == "true" ]; then
+          echo "Project cache: HIT"
+          if [ -d "$PROJECT_DERIVED_DATA" ]; then
+            echo "Directory exists and contains:"
+            find "$PROJECT_DERIVED_DATA" -type d -maxdepth 2
+            echo "Total size:"
+            du -sh "$PROJECT_DERIVED_DATA"
+          else
+            echo "WARNING: Project cache hit but directory doesn't exist!"
+          fi
+        else
+          echo "Project cache: MISS"
+        fi
+        echo "=================================="
+          
+    - name: Create project build script
+      shell: bash
+      run: |
+        echo "==== Create Project Build Script ===="
+
+        PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
+        CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
+        DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
+
+        echo "Processed values:"
+        echo "PLATFORMS: $PLATFORMS"
+        echo "CONFIGURATIONS: $CONFIGURATIONS"
+        echo "DERIVED_DATA_PATH: $DERIVED_DATA_PATH"
+
+        cat > project_build_utils.sh << EOF
+        #!/bin/bash
+        PLATFORMS="${PLATFORMS}"
+        CONFIGURATIONS="${CONFIGURATIONS}"
+        DERIVED_DATA_PATH="${DERIVED_DATA_PATH}"
+
+        project_build_cmd() {
+        cmd="preternatural build"
+          if [[ -n "\${DERIVED_DATA_PATH}" ]]; then
+            cmd="\$cmd --derived-data-path \$(printf %q "\${DERIVED_DATA_PATH}")"
+          fi
+          if [[ -n "\${PLATFORMS}" ]]; then
+            cmd="\$cmd --platforms \${PLATFORMS}"
+          fi
+          if [[ -n "\${CONFIGURATIONS}" ]]; then
+            cmd="\$cmd --configurations \${CONFIGURATIONS}"
+          fi
+          if [[ -n "\${BUILD_DIR}" ]]; then
+            cmd="\$cmd --symroot \${BUILD_DIR}"
+          fi
+          if [[ -n "\${SCHEME}" ]]; then
+            cmd="\$cmd --scheme \${SCHEME}"
+          fi
+          echo "\$cmd"
+        }
+        EOF
+        chmod +x project_build_utils.sh
+        export PLATFORMS
+        export CONFIGURATIONS
+        export DERIVED_DATA_PATH
+        echo "=================================="
+    
+    - name: Execute project build command
       id: build
       shell: bash
       run: |
+        echo "==== Execute Project Build Command ===="
+        source project_build_utils.sh
+        echo "Loaded project_build_utils.sh"
         defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
-        COMMAND="preternatural build"
-        if [ -n "${{ inputs.derived_data_path }}" ]; then
-          COMMAND="$COMMAND --derived-data-path '${{ inputs.derived_data_path }}'"
-        fi
-
-        # Handle platforms array
-        PLATFORMS="${{ join(fromJSON(inputs.platforms), ',') }}"
-        if [ -n "$PLATFORMS" ]; then
-          COMMAND="$COMMAND --platforms '$PLATFORMS'"
-        fi
-        
-        # Handle configurations array
-        CONFIGS="${{ join(fromJSON(inputs.configurations), ',') }}"
-        if [ -n "$CONFIGS" ]; then
-          COMMAND="$COMMAND --configurations '$CONFIGS'"
-        fi
-
+        echo "Set IDESkipMacroFingerprintValidation"
+        COMMAND=$(project_build_cmd)
         echo "Executing command: $COMMAND"
-        eval $COMMAND
+        eval "$COMMAND"
+        echo "Command execution completed with status: $?"
+        echo "=================================="
         
     - name: Find and copy all xcactivity logs
       if: failure()
       shell: bash
       run: |
-        if [ -n "${{ inputs.derived_data_path }}" ]; then
-          DERIVED_DATA_PATH="${{ inputs.derived_data_path }}"
-        else
-          DERIVED_DATA_PATH="$HOME/Library/Developer/Xcode/DerivedData"
-        fi
+        DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
         echo "Searching for logs in: $DERIVED_DATA_PATH"
         
         mkdir -p ./artifacts
@@ -106,7 +208,7 @@ runs:
         mkdir -p ./json_logs
         for log in ./artifacts/*.xcactivitylog; do
           json_file="./json_logs/$(basename "$log" .xcactivitylog).json"
-          xclogparser parse --file "$log" --output "$json_file"
+          xclogparser parse --file "$log" --reporter json --output "$json_file"
           echo "Contents of $json_file:"
           cat "$json_file"
           echo "--------------------------------"
@@ -114,7 +216,7 @@ runs:
 
     - name: Upload xcactivity logs (JSON)
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-json
         path: ./json_logs/*.json
@@ -122,7 +224,7 @@ runs:
 
     - name: Upload xcactivity logs (Raw)
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-raw
         path: ./artifacts/*.xcactivitylog

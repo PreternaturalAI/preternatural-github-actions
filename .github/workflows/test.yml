@@ -1,0 +1,13 @@
+name: 'Test Preternatural Build Action'
+on: 
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-swift-package:
+    runs-on: ghcr.io/cirruslabs/macos-runner:sonoma
+    steps:
+      - name: Test Swift Package Basic Functionality
+        uses: tahabebek/MockPackage/BuildAction@main
+        with:
+          path: ${{ github.sha }}
