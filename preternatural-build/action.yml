@@ -169,7 +169,7 @@ runs:
 
     - name: Upload xcactivity logs (JSON)
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-json
         path: ./json_logs/*.json
@@ -177,7 +177,7 @@ runs:
 
     - name: Upload xcactivity logs (Raw)
       if: failure()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-raw
         path: ./artifacts/*.xcactivitylog
