@@ -13,7 +13,7 @@ This document catalogs the available Preternatural GitHub Actions and their usag
 
 ## Build Action
 
-The Build Action runs Preternatural build commands on repositories with specified Xcode configurations.
+The Build Action runs Preternatural build commands on repositories with specified Xcode configurations. The xcactivitylog steps are optional and will not stop the workflow if they fail.
 
 ### Build Action Inputs
 
