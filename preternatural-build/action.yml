@@ -164,6 +164,7 @@ runs:
         
     - name: Find and copy all xcactivity logs
       if: failure()
+      continue-on-error: true
       shell: bash
       run: |
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
@@ -191,12 +192,14 @@ runs:
 
     - name: Install xclogparser
       if: failure()
+      continue-on-error: true
       shell: bash
       run: |
         brew install xclogparser
 
     - name: Convert logs to JSON and print
       if: failure()
+      continue-on-error: true
       shell: bash
       run: |
         mkdir -p ./json_logs
@@ -210,6 +213,7 @@ runs:
 
     - name: Upload xcactivity logs (JSON)
       if: failure()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-json
@@ -218,6 +222,7 @@ runs:
 
     - name: Upload xcactivity logs (Raw)
       if: failure()
+      continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
         name: xcactivity-logs-raw

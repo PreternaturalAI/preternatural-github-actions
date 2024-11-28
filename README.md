@@ -5,7 +5,7 @@ This repository contains GitHub Actions for use with [Preternatural CLI](https:/
 # Actions
 
 ## `preternatural-build-action`
-Runs the Preternatural CLI build command on your repositories.
+Runs the Preternatural CLI build command on your repositories. The xcactivitylog steps are optional and will not stop the workflow if they fail.
 
 ```yaml
 - uses: PreternaturalAI/preternatural-build-action@v1
