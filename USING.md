@@ -23,6 +23,7 @@ The Build Action runs Preternatural build commands on repositories with specifie
 | `platforms` | Target platforms to build for | No | `["macOS"]` |
 | `configurations` | Build configurations to use | No | `["debug", "release"]` |
 | `derived_data_path` | Path to the derived data folder | No | `DerivedData/ProjectBuild` |
+| `reuse_derived_data` | Option to reuse derived data | No | `true` |
 
 ### Build Action Examples
 
@@ -65,6 +66,14 @@ steps:
     with:
       xcode-version: '14.3.1'
       platforms: '["macOS"]'
+```
+
+#### Build with Reuse Derived Data Disabled
+```yaml
+steps:
+  - uses: PreternaturalAI/preternatural-build-action@v1
+    with:
+      reuse_derived_data: false
 ```
 
 ## Archive & Notarize Action
