@@ -9,6 +9,11 @@ Runs the Preternatural CLI build command on your repositories. The xcactivitylog
 
 ```yaml
 - uses: PreternaturalAI/preternatural-build-action@v1
+  with:
+    xcode-version: 'latest-stable'
+    platforms: '["macOS"]'
+    configurations: '["debug", "release"]'
+    derived_data_path: 'DerivedData/ProjectBuild'
 ```
 
 ## `preternatural-archive-action`

@@ -107,11 +107,11 @@ runs:
         fi
         echo "=================================="
           
-    - name: Create project build script
+    - name: Execute preternatural build command
+      id: build
       shell: bash
       run: |
-        echo "==== Create Project Build Script ===="
-
+        echo "==== Execute Preternatural Build Command ===="
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
@@ -121,42 +121,17 @@ runs:
         echo "CONFIGURATIONS: $CONFIGURATIONS"
         echo "DERIVED_DATA_PATH: $DERIVED_DATA_PATH"
 
-        cat > project_build_utils.sh << EOF
-        #!/bin/bash
-        PLATFORMS="${PLATFORMS}"
-        CONFIGURATIONS="${CONFIGURATIONS}"
-        DERIVED_DATA_PATH="${DERIVED_DATA_PATH}"
+        COMMAND="preternatural build"
+        if [[ -n "$DERIVED_DATA_PATH" ]]; then
+          COMMAND="$COMMAND --derived-data-path $(printf %q "$DERIVED_DATA_PATH")"
+        fi
+        if [[ -n "$PLATFORMS" ]]; then
+          COMMAND="$COMMAND --platforms $PLATFORMS"
+        fi
+        if [[ -n "$CONFIGURATIONS" ]]; then
+          COMMAND="$COMMAND --configurations $CONFIGURATIONS"
+        fi
 
-        project_build_cmd() {
-        cmd="preternatural build"
-          if [[ -n "\${DERIVED_DATA_PATH}" ]]; then
-            cmd="\$cmd --derived-data-path \$(printf %q "\${DERIVED_DATA_PATH}")"
-          fi
-          if [[ -n "\${PLATFORMS}" ]]; then
-            cmd="\$cmd --platforms \${PLATFORMS}"
-          fi
-          if [[ -n "\${CONFIGURATIONS}" ]]; then
-            cmd="\$cmd --configurations \${CONFIGURATIONS}"
-          fi
-          echo "\$cmd"
-        }
-        EOF
-        chmod +x project_build_utils.sh
-        export PLATFORMS
-        export CONFIGURATIONS
-        export DERIVED_DATA_PATH
-        echo "=================================="
-    
-    - name: Execute project build command
-      id: build
-      shell: bash
-      run: |
-        echo "==== Execute Project Build Command ===="
-        source project_build_utils.sh
-        echo "Loaded project_build_utils.sh"
-        defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
-        echo "Set IDESkipMacroFingerprintValidation"
-        COMMAND=$(project_build_cmd)
         echo "Executing command: $COMMAND"
         eval "$COMMAND"
         echo "Command execution completed with status: $?"
