@@ -14,6 +14,7 @@ Runs the Preternatural CLI build command on your repositories. The xcactivitylog
     platforms: '["macOS"]'
     configurations: '["debug", "release"]'
     derived_data_path: 'DerivedData/ProjectBuild'
+    reuse_derived_data: true
 ```
 
 ## `preternatural-archive-action`

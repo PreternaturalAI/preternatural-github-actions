@@ -17,6 +17,10 @@ inputs:
     description: 'The path to the derived data folder'
     required: false
     default: DerivedData/ProjectBuild
+  reuse_derived_data:
+    description: 'Option to reuse derived data'
+    required: false
+    default: true
 
 runs:
   using: 'composite'
@@ -68,7 +72,7 @@ runs:
     - name: Cache project derived data
       id: cache-derived-data
       uses: actions/cache@v4
-      if: ${{ !env.ACT }}
+      if: ${{ !env.ACT && inputs.reuse_derived_data == 'true' }}
       with:
         path: ${{ github.workspace }}/${{ inputs.derived_data_path }}
         key: ${{ steps.cache-key.outputs.project-name }}-derived-data-v1-${{ runner.os }}-xcode${{ inputs.xcode-version }}-platforms-${{ steps.cache-key.outputs.platforms-key }}-${{ steps.cache-key.outputs.package-hash }}
@@ -121,19 +125,8 @@ runs:
         echo "CONFIGURATIONS: $CONFIGURATIONS"
         echo "DERIVED_DATA_PATH: $DERIVED_DATA_PATH"
 
-        COMMAND="preternatural build"
-        if [[ -n "$DERIVED_DATA_PATH" ]]; then
-          COMMAND="$COMMAND --derived-data-path $(printf %q "$DERIVED_DATA_PATH")"
-        fi
-        if [[ -n "$PLATFORMS" ]]; then
-          COMMAND="$COMMAND --platforms $PLATFORMS"
-        fi
-        if [[ -n "$CONFIGURATIONS" ]]; then
-          COMMAND="$COMMAND --configurations $CONFIGURATIONS"
-        fi
-
-        echo "Executing command: $COMMAND"
-        eval "$COMMAND"
+        echo "Executing command: preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS
         echo "Command execution completed with status: $?"
         echo "=================================="
         
