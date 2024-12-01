@@ -24,13 +24,13 @@ runs:
 
     - name: Install Preternatural
       if: ${{ !env.ACT }}
-      shell: bash
+      shell: zsh
       run: |
         brew tap PreternaturalAI/preternatural
         brew install preternatural
 
     - name: Execute preternatural build command
-      shell: bash
+      shell: zsh
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
