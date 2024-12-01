@@ -13,10 +13,6 @@ inputs:
     description: 'Build configurations (array of: debug, release)'
     required: false
     default: '["debug", "release"]'
-  derived_data_path:
-    description: 'The path to the derived data folder'
-    required: false
-    default: DerivedData/ProjectBuild
 
 runs:
   using: 'composite'
@@ -38,9 +34,7 @@ runs:
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
-        DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
         
         preternatural build \
-          --derived-data-path "$DERIVED_DATA_PATH" \
           --platforms "$PLATFORMS" \
           --configurations "$CONFIGURATIONS"
