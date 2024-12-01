@@ -32,14 +32,14 @@ runs:
 
     - name: Install Preternatural
       if: ${{ !env.ACT }}
-      shell: zsh
+      shell: bash
       run: |
         brew tap PreternaturalAI/preternatural
         brew install preternatural
 
     - name: Generate project cache key
       id: cache-key
-      shell: zsh
+      shell: bash
       run: |
         if ls *.xcodeproj/project.pbxproj 1> /dev/null 2>&1; then
           echo "Found Xcode project"
@@ -81,7 +81,7 @@ runs:
     
     - name: Debug Cache Status
       if: ${{ !env.ACT }}
-      shell: zsh
+      shell: bash
       run: |        
         echo "Project Cache:"
         echo "Cache key components:"
@@ -110,7 +110,7 @@ runs:
           
     - name: Execute preternatural build command
       id: build
-      shell: zsh
+      shell: bash
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
@@ -126,7 +126,7 @@ runs:
     - name: Find and copy all xcactivity logs
       if: failure()
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
         echo "Searching for logs in: $DERIVED_DATA_PATH"
@@ -154,14 +154,14 @@ runs:
     - name: Install xclogparser
       if: failure()
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         brew install xclogparser
 
     - name: Convert logs to JSON and print
       if: failure()
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         mkdir -p ./json_logs
         for log in ./artifacts/*.xcactivitylog; do
