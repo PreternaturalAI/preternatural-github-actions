@@ -82,9 +82,7 @@ runs:
     - name: Debug Cache Status
       if: ${{ !env.ACT }}
       shell: bash
-      run: |
-        echo "==== Cache Status ===="
-        
+      run: |        
         echo "Project Cache:"
         echo "Cache key components:"
         echo "- Runner OS: ${{ runner.os }}"
@@ -109,13 +107,11 @@ runs:
         else
           echo "Project cache: MISS"
         fi
-        echo "=================================="
           
     - name: Execute preternatural build command
       id: build
       shell: bash
       run: |
-        echo "==== Execute Preternatural Build Command ===="
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
@@ -126,9 +122,9 @@ runs:
         echo "DERIVED_DATA_PATH: $DERIVED_DATA_PATH"
 
         echo "Executing command: preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
         preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS
         echo "Command execution completed with status: $?"
-        echo "=================================="
         
     - name: Find and copy all xcactivity logs
       if: failure()
