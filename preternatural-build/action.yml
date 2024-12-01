@@ -17,10 +17,6 @@ inputs:
     description: 'The path to the derived data folder'
     required: false
     default: DerivedData/ProjectBuild
-  reuse_derived_data:
-    description: 'Option to reuse derived data'
-    required: false
-    default: true
 
 runs:
   using: 'composite'
@@ -37,158 +33,14 @@ runs:
         brew tap PreternaturalAI/preternatural
         brew install preternatural
 
-    - name: Generate project cache key
-      id: cache-key
-      shell: bash
-      run: |
-        if ls *.xcodeproj/project.pbxproj 1> /dev/null 2>&1; then
-          echo "Found Xcode project"
-          PROJECT_NAME=$(basename *.xcodeproj .xcodeproj)
-          HASH=$(shasum *.xcodeproj/project.pbxproj | cut -d' ' -f1)
-        elif ls *.xcworkspace/contents.xcworkspacedata 1> /dev/null 2>&1; then
-          echo "Found Xcode workspace"
-          PROJECT_NAME=$(basename *.xcworkspace .xcworkspace)
-          HASH=$(shasum *.xcworkspace/contents.xcworkspacedata | cut -d' ' -f1)
-        elif [ -f "Package.swift" ]; then
-          echo "Found Swift package"
-          PROJECT_NAME=$(swift package describe --type json | awk '/^{/,/^}/' 2>/dev/null | jq -r '.name')
-          if [ -f "Package.resolved" ]; then
-            HASH=$(shasum Package.resolved | cut -d' ' -f1)
-          else
-            HASH=$(shasum Package.swift | cut -d' ' -f1)
-          fi
-        else
-          echo "No recognized project structure found"
-          PROJECT_NAME="unknown"
-          HASH=$(date +%s | shasum | cut -d' ' -f1)
-        fi
-        
-        echo "project-name=$PROJECT_NAME" >> $GITHUB_OUTPUT
-        
-        PLATFORMS_KEY=$(echo '${{ inputs.platforms }}' | tr -d '[]"' | sed 's/, /-/g' | sed 's/,/-/g')
-        echo "platforms-key=$PLATFORMS_KEY" >> $GITHUB_OUTPUT
-        echo "package-hash=$HASH" >> $GITHUB_OUTPUT
-
-    - name: Cache project derived data
-      id: cache-derived-data
-      uses: actions/cache@v4
-      if: ${{ !env.ACT && inputs.reuse_derived_data == 'true' }}
-      with:
-        path: ${{ github.workspace }}/${{ inputs.derived_data_path }}
-        key: ${{ steps.cache-key.outputs.project-name }}-derived-data-v1-${{ runner.os }}-xcode${{ inputs.xcode-version }}-platforms-${{ steps.cache-key.outputs.platforms-key }}-${{ steps.cache-key.outputs.package-hash }}
-        restore-keys: |
-          ${{ steps.cache-key.outputs.project-name }}-derived-data-v1-${{ runner.os }}-xcode${{ inputs.xcode-version }}-platforms-
-    
-    - name: Debug Cache Status
-      if: ${{ !env.ACT }}
-      shell: bash
-      run: |        
-        echo "Project Cache:"
-        echo "Cache key components:"
-        echo "- Runner OS: ${{ runner.os }}"
-        echo "- Xcode Version: ${{ inputs.xcode-version }}"
-        echo "- Platforms: ${{ inputs.platforms }}"
-        echo "- Package.resolved hash: ${{ hashFiles('Package.resolved') }}"
-        echo "- Package.swift hash: ${{ hashFiles('Package.swift') }}"
-        
-        PROJECT_DERIVED_DATA=${{ github.workspace }}/${{ inputs.derived_data_path }}
-        echo "Project derived data path: $PROJECT_DERIVED_DATA"
-        
-        if [ "${{ steps.cache-derived-data.outputs.cache-hit }}" == "true" ]; then
-          echo "Project cache: HIT"
-          if [ -d "$PROJECT_DERIVED_DATA" ]; then
-            echo "Directory exists and contains:"
-            find "$PROJECT_DERIVED_DATA" -type d -maxdepth 2
-            echo "Total size:"
-            du -sh "$PROJECT_DERIVED_DATA"
-          else
-            echo "WARNING: Project cache hit but directory doesn't exist!"
-          fi
-        else
-          echo "Project cache: MISS"
-        fi
-          
     - name: Execute preternatural build command
-      id: build
       shell: bash
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
-
-        echo "Processed values:"
-        echo "PLATFORMS: $PLATFORMS"
-        echo "CONFIGURATIONS: $CONFIGURATIONS"
-        echo "DERIVED_DATA_PATH: $DERIVED_DATA_PATH"
-
-        echo "Executing command: preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS"
-        defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
-        preternatural build --derived-data-path $(printf %q "$DERIVED_DATA_PATH") --platforms $PLATFORMS --configurations $CONFIGURATIONS
-        echo "Command execution completed with status: $?"
         
-    - name: Find and copy all xcactivity logs
-      if: failure()
-      continue-on-error: true
-      shell: bash
-      run: |
-        DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
-        echo "Searching for logs in: $DERIVED_DATA_PATH"
-        
-        mkdir -p ./artifacts
-        
-        # Find all xcactivitylog files and copy them to the artifacts directory
-        find "$DERIVED_DATA_PATH" -name "*.xcactivitylog" -type f -print0 | while IFS= read -r -d '' log; do
-          cp "$log" "./artifacts/$(basename "$log")"
-          echo "Copied $log to ./artifacts/"
-        done
-        
-        # Debug information
-        echo "List of copied log files:"
-        ls -l ./artifacts/*.xcactivitylog
-        echo "Total size of copied logs:"
-        du -sh ./artifacts
-        
-        # Check if any logs were found and copied
-        if [ -z "$(ls -A ./artifacts)" ]; then
-          echo "No xcactivitylog files found in $DERIVED_DATA_PATH"
-          exit 1
-        fi
-
-    - name: Install xclogparser
-      if: failure()
-      continue-on-error: true
-      shell: bash
-      run: |
-        brew install xclogparser
-
-    - name: Convert logs to JSON and print
-      if: failure()
-      continue-on-error: true
-      shell: bash
-      run: |
-        mkdir -p ./json_logs
-        for log in ./artifacts/*.xcactivitylog; do
-          json_file="./json_logs/$(basename "$log" .xcactivitylog).json"
-          xclogparser parse --file "$log" --reporter json --output "$json_file"
-          echo "Contents of $json_file:"
-          cat "$json_file"
-          echo "--------------------------------"
-        done
-
-    - name: Upload xcactivity logs (JSON)
-      if: failure()
-      continue-on-error: true
-      uses: actions/upload-artifact@v4
-      with:
-        name: xcactivity-logs-json
-        path: ./json_logs/*.json
-        if-no-files-found: error
-
-    - name: Upload xcactivity logs (Raw)
-      if: failure()
-      continue-on-error: true
-      uses: actions/upload-artifact@v4
-      with:
-        name: xcactivity-logs-raw
-        path: ./artifacts/*.xcactivitylog
-        if-no-files-found: error
+        preternatural build \
+          --derived-data-path "$DERIVED_DATA_PATH" \
+          --platforms "$PLATFORMS" \
+          --configurations "$CONFIGURATIONS"
