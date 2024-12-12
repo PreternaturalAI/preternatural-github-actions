@@ -16,7 +16,7 @@ inputs:
   derived_data_path:
     description: 'The path to the derived data folder'
     required: false
-    default: DerivedData/ProjectBuild
+    default: PreternaturalBuild-DerivedData
 
 runs:
   using: 'composite'
@@ -33,14 +33,43 @@ runs:
         brew tap PreternaturalAI/preternatural
         brew install preternatural
 
+    - name: Restore DerivedData Cache
+      uses: actions/cache/restore@v4
+      with:
+        path: "**/PreternaturalBuild-DerivedData"
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
+
     - name: Execute preternatural build command
+      id: build
       shell: bash
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
+                
+        function run_build() {
+          preternatural build \
+            --derived-data-path "$DERIVED_DATA_PATH" \
+            --platforms "$PLATFORMS" \
+            --configurations "$CONFIGURATIONS"
+        }
         
-        preternatural build \
-          --derived-data-path "$DERIVED_DATA_PATH" \
-          --platforms "$PLATFORMS" \
-          --configurations "$CONFIGURATIONS"
+        # First attempt
+        if ! run_build; then
+          echo "First build attempt failed. Cleaning derived data and retrying..."
+          rm -rf "$DERIVED_DATA_PATH"
+          
+          # Second attempt
+          if ! run_build; then
+            echo "Second build attempt failed after cleaning derived data. Failing the workflow."
+            exit 1
+          fi
+        fi
+        echo "build_succeeded=true" >> $GITHUB_OUTPUT
+
+    - name: Save DerivedData Cache
+      if: steps.build.outputs.build_succeeded == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: "**/PreternaturalBuild-DerivedData"
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
