@@ -40,6 +40,8 @@ runs:
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
         
+        defaults write com.apple.dt.Xcode IDESkipMacroFingerprintValidation -bool YES
+
         preternatural build \
           --derived-data-path "$DERIVED_DATA_PATH" \
           --platforms "$PLATFORMS" \
