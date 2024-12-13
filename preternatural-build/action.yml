@@ -46,25 +46,48 @@ runs:
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
         DERIVED_DATA_PATH=${{ github.workspace }}/${{ inputs.derived_data_path }}
-                
-        function run_build() {
-          preternatural build \
-            --derived-data-path "$DERIVED_DATA_PATH" \
-            --platforms "$PLATFORMS" \
-            --configurations "$CONFIGURATIONS"
+
+        function check_derived_data() {
+          echo "Checking DerivedData folder at: $DERIVED_DATA_PATH"
+          if [ -d "$DERIVED_DATA_PATH" ]; then
+            echo "DerivedData folder exists. Contents:"
+            ls -la "$DERIVED_DATA_PATH"
+            echo "Total size of DerivedData:"
+            du -sh "$DERIVED_DATA_PATH"
+          else
+            echo "DerivedData folder does not exist"
+          fi
         }
+
+        # Construct the command as a string
+        PRETERNATURAL_CMD="preternatural build --derived-data-path \"$DERIVED_DATA_PATH\" --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        
+        echo "Constructed preternatural build command:"
+        echo "${PRETERNATURAL_CMD}"
+        
+        check_derived_data
         
         # First attempt
-        if ! run_build; then
-          echo "First build attempt failed. Cleaning derived data and retrying..."
+        set +e  # Don't exit on error
+        eval ${PRETERNATURAL_CMD} 2>&1
+        BUILD_STATUS=$?
+        set -e  # Return to exit on error
+        
+        if [ $BUILD_STATUS -ne 0 ]; then
+          echo "First build attempt failed (status: $BUILD_STATUS). Cleaning derived data and retrying..."
           rm -rf "$DERIVED_DATA_PATH"
+          check_derived_data
           
           # Second attempt
-          if ! run_build; then
-            echo "Second build attempt failed after cleaning derived data. Failing the workflow."
+          eval ${PRETERNATURAL_CMD} 2>&1
+          RETRY_STATUS=$?
+          
+          if [ $RETRY_STATUS -ne 0 ]; then
+            echo "Second build attempt failed (status: $RETRY_STATUS) after cleaning derived data. Failing the workflow."
             exit 1
           fi
         fi
+        
         echo "build_succeeded=true" >> $GITHUB_OUTPUT
 
     - name: Save DerivedData Cache
