@@ -16,7 +16,7 @@ inputs:
   derived_data_path:
     description: 'The path to the derived data folder'
     required: false
-    default: "../Preternatural-DerivedData"
+    default: "PreternaturalBuild-DerivedData"
 
 runs:
   using: 'composite'
@@ -36,7 +36,7 @@ runs:
     - name: Restore DerivedData Cache
       uses: actions/cache/restore@v4
       with:
-        path: "**/Preternatural-DerivedData"
+        path: "PreternaturalBuild-DerivedData"
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
 
     - name: Execute preternatural build command
@@ -60,7 +60,7 @@ runs:
         }
 
         # Construct the command as a string
-        PRETERNATURAL_CMD="preternatural build --derived-data-path \"$DERIVED_DATA_PATH\" --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        PRETERNATURAL_CMD="script -q /dev/null preternatural build --derived-data-path \"$DERIVED_DATA_PATH\" --platforms $PLATFORMS --configurations $CONFIGURATIONS"
         
         echo "Constructed preternatural build command:"
         echo "${PRETERNATURAL_CMD}"
@@ -94,5 +94,5 @@ runs:
       if: steps.build.outputs.build_succeeded == 'true'
       uses: actions/cache/save@v4
       with:
-        path: "**/Preternatural-DerivedData"
+        path: "PreternaturalBuild-DerivedData"
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
