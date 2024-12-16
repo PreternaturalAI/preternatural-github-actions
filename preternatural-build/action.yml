@@ -94,34 +94,6 @@ runs:
         path: "~/preternatural-derived-data"
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
 
-    - name: Find and copy all xcactivity logs
-      if: steps.build.outputs.build_succeeded != 'true'
-      continue-on-error: true
-      shell: bash
-      run: |
-        DERIVED_DATA_PATH=$HOME/${{ inputs.derived_data_path }}
-        echo "Searching for logs in: $DERIVED_DATA_PATH"
-        
-        mkdir -p ./artifacts
-        
-        # Find all xcactivitylog files and copy them to the artifacts directory
-        find "$DERIVED_DATA_PATH" -name "*.xcactivitylog" -type f -print0 | while IFS= read -r -d '' log; do
-          cp "$log" "./artifacts/$(basename "$log")"
-          echo "Copied $log to ./artifacts/"
-        done
-        
-        # Debug information
-        echo "List of copied log files:"
-        ls -l ./artifacts/*.xcactivitylog
-        echo "Total size of copied logs:"
-        du -sh ./artifacts
-        
-        # Check if any logs were found and copied
-        if [ -z "$(ls -A ./artifacts)" ]; then
-          echo "No xcactivitylog files found in $DERIVED_DATA_PATH"
-          exit 1
-        fi
-
     - name: Install xclogparser
       if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
@@ -129,35 +101,57 @@ runs:
       run: |
         brew install xclogparser
 
-    - name: Convert logs to JSON and print
+    - name: Find and process logs
       if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
       shell: bash
       run: |
-        mkdir -p ./json_logs
-        for log in ./artifacts/*.xcactivitylog; do
-          json_file="./json_logs/$(basename "$log" .xcactivitylog).json"
+        DERIVED_DATA_PATH=$HOME/${{ inputs.derived_data_path }}
+        echo "Searching for logs in: $DERIVED_DATA_PATH"
+        
+        mkdir -p ./artifacts/xcactivitylogs
+        mkdir -p ./artifacts/json_logs
+        mkdir -p ./artifacts/xcresults
+        
+        # Find and copy xcactivitylog files
+        find "$DERIVED_DATA_PATH" -name "*.xcactivitylog" -type f -print0 | while IFS= read -r -d '' log; do
+          cp "$log" "./artifacts/xcactivitylogs/$(basename "$log")"
+          echo "Copied $log to ./artifacts/xcactivitylogs/"
+          
+          # Convert to JSON
+          json_file="./artifacts/json_logs/$(basename "$log" .xcactivitylog).json"
           xclogparser parse --file "$log" --reporter json --output "$json_file"
-          echo "Contents of $json_file:"
-          cat "$json_file"
+          echo "Converted $log to JSON: $json_file"
         done
+        
+        # Find and copy xcresult bundles
+        find "$DERIVED_DATA_PATH" -name "*.xcresult" -type d -print0 | while IFS= read -r -d '' result; do
+          cp -R "$result" "./artifacts/xcresults/"
+          echo "Copied $result to ./artifacts/xcresults/"
+        done
+        
+        # Debug information
+        echo "Contents of artifacts directory:"
+        ls -R ./artifacts
+        
+        # Check if any logs were found and copied
+        if [ -z "$(ls -A ./artifacts/xcactivitylogs)" ] && [ -z "$(ls -A ./artifacts/xcresults)" ]; then
+          echo "No log files or xcresult bundles found in $DERIVED_DATA_PATH"
+          exit 1
+        fi
+        
+        # Create zip archive
+        cd ./artifacts
+        zip -r ../build-artifacts.zip ./*
+        cd ..
 
-    - name: Upload xcactivity logs (JSON)
+    - name: Upload build artifacts
       if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: xcactivity-logs-json
-        path: ./json_logs/*.json
-        if-no-files-found: error
-
-    - name: Upload xcactivity logs (Raw)
-      if: steps.build.outputs.build_succeeded != 'true'
-      continue-on-error: true
-      uses: actions/upload-artifact@v4
-      with:
-        name: xcactivity-logs-raw
-        path: ./artifacts/*.xcactivitylog
+        name: build-artifacts
+        path: build-artifacts.zip
         if-no-files-found: error
 
     - name: Check build status and fail if necessary
