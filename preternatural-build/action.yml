@@ -44,6 +44,7 @@ runs:
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
 
     - name: Execute preternatural build command
+      continue-on-error: true
       id: build
       shell: bash
       run: |
@@ -94,9 +95,9 @@ runs:
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
 
     - name: Find and copy all xcactivity logs
-      if: failure()
+      if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         DERIVED_DATA_PATH=$HOME/${{ inputs.derived_data_path }}
         echo "Searching for logs in: $DERIVED_DATA_PATH"
@@ -122,16 +123,16 @@ runs:
         fi
 
     - name: Install xclogparser
-      if: failure()
+      if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         brew install xclogparser
 
     - name: Convert logs to JSON and print
-      if: failure()
+      if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
-      shell: zsh
+      shell: bash
       run: |
         mkdir -p ./json_logs
         for log in ./artifacts/*.xcactivitylog; do
@@ -142,7 +143,7 @@ runs:
         done
 
     - name: Upload xcactivity logs (JSON)
-      if: failure()
+      if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
@@ -151,7 +152,7 @@ runs:
         if-no-files-found: error
 
     - name: Upload xcactivity logs (Raw)
-      if: failure()
+      if: steps.build.outputs.build_succeeded != 'true'
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
