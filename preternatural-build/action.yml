@@ -159,3 +159,10 @@ runs:
         name: xcactivity-logs-raw
         path: ./artifacts/*.xcactivitylog
         if-no-files-found: error
+
+    - name: Check build status and fail if necessary
+      if: steps.build.outputs.build_succeeded != 'true'
+      shell: bash
+      run: |
+        echo "Build failed earlier in the workflow"
+        exit 1
