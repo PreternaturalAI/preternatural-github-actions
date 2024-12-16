@@ -21,6 +21,11 @@ inputs:
     description: 'The path to the derived data folder'
     required: false
     default: "preternatural-derived-data"
+  fuck-swift-syntax:
+    description: 'Enable the --fuck-swift-syntax flag for the build command'
+    required: false
+    default: false
+    type: boolean
 
 runs:
   using: 'composite'
@@ -60,6 +65,9 @@ runs:
 
         # Construct the command as a string
         PRETERNATURAL_CMD="script -q /dev/null preternatural build --derived-data-path \"$DERIVED_DATA_PATH\" --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        if [ "${{ inputs.fuck-swift-syntax }}" == "true" ]; then
+          PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
+        fi
         
         echo "Running preternatural build command:"
         echo "${PRETERNATURAL_CMD}"
