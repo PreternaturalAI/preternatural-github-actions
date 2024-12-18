@@ -17,10 +17,6 @@ inputs:
     description: 'Directory to run the preternatural command from'
     required: false
     default: ''
-  derived_data_path:
-    description: 'The path to the derived data folder'
-    required: false
-    default: "preternatural-derived-data"
   fuck-swift-syntax:
     description: 'Enable the --fuck-swift-syntax flag for the build command'
     required: false
@@ -45,8 +41,10 @@ runs:
     - name: Restore DerivedData Cache
       uses: actions/cache/restore@v4
       with:
-        path: "~/preternatural-derived-data"
-        key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
+        path: "~/Library/Developer/Xcode/DerivedData"
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
+        restore-keys: |
+          ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data
 
     - name: Execute preternatural build command
       continue-on-error: true
@@ -55,7 +53,6 @@ runs:
       run: |
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
-        DERIVED_DATA_PATH=$HOME/${{ inputs.derived_data_path }}
 
         # Change directory if working-directory is provided
         if [ ! -z "${{ inputs.working-directory }}" ]; then
@@ -64,7 +61,7 @@ runs:
         fi
 
         # Construct the command as a string
-        PRETERNATURAL_CMD="script -q /dev/null preternatural build --derived-data-path \"$DERIVED_DATA_PATH\" --platforms $PLATFORMS --configurations $CONFIGURATIONS"
+        PRETERNATURAL_CMD="script -q /dev/null preternatural build --platforms $PLATFORMS --configurations $CONFIGURATIONS"
         if [ "${{ inputs.fuck-swift-syntax }}" == "true" ]; then
           PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
         fi
@@ -99,8 +96,8 @@ runs:
       if: steps.build.outputs.build_succeeded == 'true'
       uses: actions/cache/save@v4
       with:
-        path: "~/preternatural-derived-data"
-        key: ${{ runner.os }}-${{ github.repository }}-${{ github.ref_name }}-derived-data
+        path: "~/Library/Developer/Xcode/DerivedData"
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
 
     - name: Install xclogparser
       if: steps.build.outputs.build_succeeded != 'true'
