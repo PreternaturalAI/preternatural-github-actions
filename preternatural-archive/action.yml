@@ -69,9 +69,9 @@ runs:
         NOTARIZATION_APP_STORE_CONNECT_PASSWORD: ${{ inputs.notarization_password }}
       run: |
         if [ -n "${{ inputs.notarization_team_id }}" ]; then
-          preternatural archive --team-id "${{ inputs.notarization_team_id }}"
+          script -q /dev/null preternatural archive --team-id "${{ inputs.notarization_team_id }}"
         else
-          preternatural archive
+          script -q /dev/null preternatural archive
         fi
 
     - name: Find archive file
