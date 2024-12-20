@@ -1,0 +1,67 @@
+name: 'Preternatural Upload Logs Action'
+description: 'Processes and uploads logs from the default derived data path'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install xclogparser
+      continue-on-error: true
+      shell: bash
+      run: |
+        brew install xclogparser
+
+    - name: Find and process logs
+      continue-on-error: true
+      shell: bash
+      run: |
+        DERIVED_DATA_PATH="$HOME/Library/Developer/Xcode/DerivedData"
+        echo "Searching for logs in: $DERIVED_DATA_PATH"
+        
+        mkdir -p ./logs/xcactivitylogs
+        mkdir -p ./logs/json_logs
+        mkdir -p ./logs/xcresults
+        
+        # Find and copy xcactivitylog files
+        find "$DERIVED_DATA_PATH" -name "*.xcactivitylog" -type f -print0 | while IFS= read -r -d '' log; do
+          cp "$log" "./logs/xcactivitylogs/$(basename "$log")"
+          echo "Copied $log to ./logs/xcactivitylogs/"
+          
+          # Convert to JSON
+          json_file="./logs/json_logs/$(basename "$log" .xcactivitylog).json"
+          xclogparser parse --file "$log" --reporter json --output "$json_file"
+          echo "Converted $log to JSON: $json_file"
+        done
+        
+        # Find and copy xcresult bundles
+        find "$DERIVED_DATA_PATH" -name "*.xcresult" -type d -print0 | while IFS= read -r -d '' result; do
+          cp -R "$result" "./logs/xcresults/"
+          echo "Copied $result to ./logs/xcresults/"
+        done
+        
+        # Debug information
+        echo "Contents of logs directory:"
+        ls -R ./logs
+        
+        # Check if any logs were found and copied
+        if [ -z "$(ls -A ./logs/xcactivitylogs)" ] && [ -z "$(ls -A ./logs/xcresults)" ]; then
+          echo "No log files or xcresult bundles found in $DERIVED_DATA_PATH"
+          exit 1
+        fi
+        
+        # Create zip archive
+        cd ./logs
+        zip -r ../logs.zip ./*
+        cd ..
+        
+        # Clean up Logs and ResultBundle folders in DerivedData
+        echo "Cleaning up Logs and ResultBundle folders in DerivedData..."
+        find "$DERIVED_DATA_PATH" -type d -name "Logs" -exec rm -rf {} +
+        find "$DERIVED_DATA_PATH" -type d -name "ResultBundle" -exec rm -rf {} +
+        echo "Cleanup completed"
+
+    - name: Upload logs
+      continue-on-error: true
+      uses: actions/upload-artifact@v4
+      with:
+        name: logs
+        path: logs.zip
