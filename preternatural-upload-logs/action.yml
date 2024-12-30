@@ -23,6 +23,7 @@ runs:
         
         # Find and copy xcactivitylog files
         find "$DERIVED_DATA_PATH" -name "*.xcactivitylog" -type f -print0 | while IFS= read -r -d '' log; do
+          set +e  # Disable error checking
           cp "$log" "./logs/xcactivitylogs/$(basename "$log")"
           echo "Copied $log to ./logs/xcactivitylogs/"
           
@@ -30,6 +31,7 @@ runs:
           json_file="./logs/json_logs/$(basename "$log" .xcactivitylog).json"
           xclogparser parse --file "$log" --reporter json --output "$json_file"
           echo "Converted $log to JSON: $json_file"
+          set -e  # Re-enable error checking
         done
         
         # Find and copy xcresult bundles
