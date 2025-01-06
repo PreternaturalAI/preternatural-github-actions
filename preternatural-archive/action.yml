@@ -20,6 +20,11 @@ inputs:
   p12_password:
     description: 'Password for the P12 certificate'
     required: true
+  fuck-swift-syntax:
+    description: 'Enable the --fuck-swift-syntax flag for the archive command'
+    required: false
+    default: true
+    type: boolean
 runs:
   using: 'composite'
   steps:
@@ -68,11 +73,20 @@ runs:
         NOTARIZATION_APP_STORE_CONNECT_USERNAME: ${{ inputs.notarization_username }}
         NOTARIZATION_APP_STORE_CONNECT_PASSWORD: ${{ inputs.notarization_password }}
       run: |
+        # Construct the command as a string
+        PRETERNATURAL_CMD="script -q /dev/null preternatural archive"
+        
         if [ -n "${{ inputs.notarization_team_id }}" ]; then
-          script -q /dev/null preternatural archive --team-id "${{ inputs.notarization_team_id }}"
-        else
-          script -q /dev/null preternatural archive
+          PRETERNATURAL_CMD="$PRETERNATURAL_CMD --team-id "${{ inputs.notarization_team_id }}"
         fi
+
+        if [ "${{ inputs.fuck-swift-syntax }}" == "true" ]; then
+          PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
+        fi
+
+        echo "Running preternatural archive command:"
+        echo "${PRETERNATURAL_CMD}"
+        eval ${PRETERNATURAL_CMD} 2>&1
 
     - name: Find archive file
       shell: bash

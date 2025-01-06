@@ -12,7 +12,7 @@ inputs:
   configurations:
     description: 'Build configurations (array of: debug, release)'
     required: false
-    default: '["debug", "release"]'
+    default: '["debug"]'
   working-directory:
     description: 'Directory to run the preternatural command from'
     required: false
@@ -20,7 +20,7 @@ inputs:
   fuck-swift-syntax:
     description: 'Enable the --fuck-swift-syntax flag for the build command'
     required: false
-    default: false
+    default: true
     type: boolean
 
 runs:
