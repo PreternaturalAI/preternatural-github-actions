@@ -31,12 +31,26 @@ runs:
       with:
         xcode-version: ${{ inputs.xcode-version }}
 
+    - name: Check macOS Version
+      shell: bash
+      run: sw_vers
+
+    - name: Check Xcode Version
+      shell: bash
+      run: xcodebuild -version
+
+    - name: Check Available SDKs
+      shell: bash
+      run: xcodebuild -showsdks
+
     - name: Install Preternatural
       if: ${{ !env.ACT }}
       shell: bash
       run: |
+        echo "::group::Installing Preternatural via Homebrew"
         brew tap PreternaturalAI/preternatural
         brew install preternatural
+        echo "::endgroup::"
 
     - name: Restore DerivedData Cache
       uses: actions/cache/restore@v4
@@ -51,6 +65,7 @@ runs:
       id: build
       shell: bash
       run: |
+        echo "::group::Preparing Build Command"
         PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
         CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
 
@@ -66,26 +81,32 @@ runs:
           PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
         fi
         
-        echo "Running preternatural build command:"
-        echo "${PRETERNATURAL_CMD}"
-                
+        echo "Prepared command: ${PRETERNATURAL_CMD}"
+        echo "::endgroup::"
+        
+        echo "::group::First Build Attempt"
         # First attempt
         set +e  # Don't exit on error
         eval ${PRETERNATURAL_CMD} 2>&1
         BUILD_STATUS=$?
         set -e  # Return to exit on error
+        echo "::endgroup::"
         
         if [ $BUILD_STATUS -ne 0 ]; then
+          echo "::group::Cleaning DerivedData and Retrying"
           echo "First build attempt failed (status: $BUILD_STATUS). Cleaning derived data and retrying..."
           rm -rf "$DERIVED_DATA_PATH"
           echo "Cleaned derived data"
+          echo "::endgroup::"
           
+          echo "::group::Second Build Attempt"
           # Second attempt
           eval ${PRETERNATURAL_CMD} 2>&1
           RETRY_STATUS=$?
+          echo "::endgroup::"
           
           if [ $RETRY_STATUS -ne 0 ]; then
-            echo "Second build attempt failed (status: $RETRY_STATUS) after cleaning derived data. Failing the workflow."
+            echo "::error::Second build attempt failed (status: $RETRY_STATUS) after cleaning derived data. Failing the workflow."
             exit 1
           fi
         fi
@@ -106,5 +127,5 @@ runs:
       if: steps.build.outputs.build_succeeded != 'true'
       shell: bash
       run: |
-        echo "Build failed earlier in the workflow"
+        echo "::error::Build failed earlier in the workflow"
         exit 1
