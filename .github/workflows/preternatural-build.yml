@@ -1,0 +1,137 @@
+name: Preternatural Build Workflow
+
+on:
+  workflow_call:
+    inputs:
+      xcode-version:
+        description: 'Xcode version to use'
+        type: string
+        required: false
+        default: 'latest-stable'
+      platforms:
+        description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
+        type: string
+        required: false
+        default: '["macOS"]'
+      configurations:
+        description: 'Build configurations (array of: debug, release)'
+        type: string
+        required: false
+        default: '["debug"]'
+      working-directory:
+        description: 'Directory to run the preternatural command from'
+        type: string
+        required: false
+        default: ''
+      fuck-swift-syntax:
+        description: 'Enable the --fuck-swift-syntax flag for the build command'
+        type: boolean
+        required: false
+        default: true
+
+jobs:
+  preternatural-build:
+    runs-on: ghcr.io/cirruslabs/macos-runner:sonoma
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ inputs.xcode-version }}
+
+      - name: Check macOS Version
+        shell: bash
+        run: sw_vers
+
+      - name: Check Xcode Version
+        shell: bash
+        run: xcodebuild -version
+
+      - name: Check Available SDKs
+        shell: bash
+        run: xcodebuild -showsdks
+
+      - name: Install Preternatural
+        if: ${{ !env.ACT }}
+        shell: bash
+        run: |
+          brew tap PreternaturalAI/preternatural
+          brew install preternatural
+
+      - name: Restore DerivedData Cache
+        uses: actions/cache/restore@v4
+        with:
+          path: "~/Library/Developer/Xcode/DerivedData"
+          key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data
+
+      - name: Execute preternatural build command
+        continue-on-error: true
+        id: build
+        shell: bash
+        run: |
+          PLATFORMS=$(echo '${{ inputs.platforms }}' | tr -d '[]' | sed 's/, /,/g')
+          CONFIGURATIONS=$(echo '${{ inputs.configurations }}' | tr -d '[]' | sed 's/, /,/g')
+
+          # Change directory if working-directory is provided
+          if [ ! -z "${{ inputs.working-directory }}" ]; then
+            cd "${{ inputs.working-directory }}"
+            echo "Changed working directory to: ${{ inputs.working-directory }}"
+          fi
+
+          # Construct the command as a string
+          PRETERNATURAL_CMD="script -q /dev/null preternatural build --platforms $PLATFORMS --configurations $CONFIGURATIONS --update-developer-team"
+          if [ "${{ inputs.fuck-swift-syntax }}" == "true" ]; then
+            PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
+          fi
+          
+          echo "Prepared command: ${PRETERNATURAL_CMD}"
+          
+          echo "::group::First Build Attempt"
+          # First attempt
+          set +e  # Don't exit on error
+          eval ${PRETERNATURAL_CMD} 2>&1
+          BUILD_STATUS=$?
+          set -e  # Return to exit on error
+          echo "::endgroup::"
+          
+          if [ $BUILD_STATUS -ne 0 ]; then
+            echo "::group::Cleaning DerivedData and Retrying"
+            echo "First build attempt failed (status: $BUILD_STATUS). Cleaning derived data and retrying..."
+            rm -rf "$DERIVED_DATA_PATH"
+            echo "Cleaned derived data"
+            echo "::endgroup::"
+            
+            echo "::group::Second Build Attempt"
+            # Second attempt
+            eval ${PRETERNATURAL_CMD} 2>&1
+            RETRY_STATUS=$?
+            echo "::endgroup::"
+            
+            if [ $RETRY_STATUS -ne 0 ]; then
+              echo "::error::Second build attempt failed (status: $RETRY_STATUS) after cleaning derived data. Failing the workflow."
+              exit 1
+            fi
+          fi
+          
+          echo "build_succeeded=true" >> $GITHUB_OUTPUT
+
+      - name: Upload logs
+        uses: PreternaturalAI/preternatural-github-actions/preternatural-upload-logs@main
+
+      - name: Save DerivedData Cache
+        if: steps.build.outputs.build_succeeded == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: "~/Library/Developer/Xcode/DerivedData"
+          key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
+
+      - name: Check build status and fail if necessary
+        if: steps.build.outputs.build_succeeded != 'true'
+        shell: bash
+        run: |
+          echo "Build failed earlier in the workflow"
+          exit 1
