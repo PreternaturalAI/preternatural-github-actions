@@ -118,7 +118,7 @@ runs:
 
     - name: Save DerivedData Cache
       if: steps.build.outputs.build_succeeded == 'true'
-      uses: actions/cache/save@v4
+      uses: cirruslabs/cache/save@v4
       with:
         path: "~/Library/Developer/Xcode/DerivedData"
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
