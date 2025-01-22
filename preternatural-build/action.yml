@@ -53,7 +53,7 @@ runs:
         echo "::endgroup::"
 
     - name: Restore DerivedData Cache
-      uses: actions/cache/restore@v4
+      uses: cirruslabs/cache/restore@v4
       with:
         path: "~/Library/Developer/Xcode/DerivedData"
         key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
