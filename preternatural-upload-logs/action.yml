@@ -1,9 +1,20 @@
 name: 'Preternatural Upload Logs Action'
 description: 'Processes and uploads logs from the default derived data path'
 
+inputs:
+  zip-name:
+    description: 'Name of the final log zip file (without .zip extension)'
+    required: false
+    default: ''
+
 runs:
   using: 'composite'
   steps:
+    - name: Cleanup previous runs
+      shell: bash
+      run: |
+        rm -rf ./logs
+
     - name: Find logs
       continue-on-error: true
       shell: bash
@@ -25,10 +36,21 @@ runs:
           exit 1
         fi
         
-        # Create zip archive
+        # Create zip archive with dynamic name
         cd ./logs
-        zip -r ../logs.zip ./*
+        if [ -n "${{ inputs.zip-name }}" ]; then
+          ZIP_NAME="${{ inputs.zip-name }}.zip"
+        else
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          ZIP_NAME="logs-${TIMESTAMP}.zip"
+        fi
+        zip -r "../$ZIP_NAME" ./*
         cd ..
+        
+        # Set output path for upload step
+        echo "ZIP_PATH=$ZIP_NAME" >> $GITHUB_ENV
+        # Set artifact name (zip name without extension) for upload step
+        echo "ARTIFACT_NAME=${ZIP_NAME%.zip}" >> $GITHUB_ENV
         
         # Clean up Logs and ResultBundle folders in DerivedData
         echo "Cleaning up Logs and ResultBundle folders in DerivedData..."
@@ -40,5 +62,5 @@ runs:
       continue-on-error: true
       uses: actions/upload-artifact@v4
       with:
-        name: logs
-        path: logs.zip
+        name: ${{ env.ARTIFACT_NAME }}
+        path: ${{ env.ZIP_PATH }}
