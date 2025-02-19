@@ -22,6 +22,11 @@ inputs:
     required: false
     default: true
     type: boolean
+  build-for-testing:
+    description: 'Build for testing'
+    required: false
+    default: false
+    type: boolean
 
 runs:
   using: 'composite'
@@ -77,6 +82,11 @@ runs:
 
         # Construct the command as a string
         PRETERNATURAL_CMD="script -q /dev/null preternatural build --platforms $PLATFORMS --configurations $CONFIGURATIONS --update-developer-team"
+        
+        if [ "${{ inputs.build-for-testing }}" == "true" ]; then
+          PRETERNATURAL_CMD="$PRETERNATURAL_CMD --build-for-testing"
+        fi
+
         if [ "${{ inputs.fuck-swift-syntax }}" == "true" ]; then
           PRETERNATURAL_CMD="$PRETERNATURAL_CMD --fuck-swift-syntax"
         fi
