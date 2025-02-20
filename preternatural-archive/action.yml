@@ -4,7 +4,7 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: true
-    default: 'latest-stable'
+    default: '16.2'
   notarization_username:
     description: 'App Store Connect Username for notarization'
     required: true

@@ -7,7 +7,7 @@ on:
         description: 'Xcode version to use'
         type: string
         required: false
-        default: 'latest-stable'
+        default: '16.2'
       platforms:
         description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
         type: string
@@ -31,7 +31,7 @@ on:
 
 jobs:
   preternatural-build:
-    runs-on: ghcr.io/cirruslabs/macos-runner:sonoma
+    runs-on: ghcr.io/cirruslabs/macos-runner:sequoia
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
