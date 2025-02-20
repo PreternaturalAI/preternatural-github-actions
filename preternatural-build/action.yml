@@ -4,7 +4,7 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: false
-    default: 'latest-stable'
+    default: '16.2'
   platforms:
     description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
     required: false
