@@ -6,6 +6,10 @@ inputs:
     description: 'Name of the final log zip file (without .zip extension)'
     required: false
     default: ''
+  show-passed-tests:
+    description: 'Whether to show the details of passed tests in the report'
+    required: false
+    default: 'false'
 
 runs:
   using: 'composite'
@@ -14,6 +18,7 @@ runs:
       shell: bash
       run: |
         rm -rf ./logs
+        rm -rf ./xcresult_reports
 
     - name: Find logs
       continue-on-error: true
@@ -44,7 +49,7 @@ runs:
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           ZIP_NAME="logs-${TIMESTAMP}.zip"
         fi
-        zip -r "../$ZIP_NAME" ./*
+        zip -q -r "../$ZIP_NAME" ./*
         cd ..
         
         # Set output path for upload step
@@ -57,6 +62,41 @@ runs:
         find "$DERIVED_DATA_PATH" -type d -name "Logs" -exec rm -rf {} +
         find "$DERIVED_DATA_PATH" -type d -name "ResultBundle" -exec rm -rf {} +
         echo "Cleanup completed"
+
+    - name: Prepare for xcresulttool
+      id: prepare-xcresult
+      shell: bash
+      run: |
+        # Check if any xcresult bundles exist in the logs directory
+        if [ -n "$(find ./logs -name "*.xcresult" -type d)" ]; then          
+          # Create a directory for the renamed xcresult bundles
+          mkdir -p ./xcresult_reports
+          
+          # Copy and rename xcresult bundles to static names
+          COUNT=1
+          find ./logs -name "*.xcresult" -type d | while read -r result; do
+            cp -R "$result" "./xcresult_reports/${COUNT}.xcresult"
+            echo "Copied $result to ./xcresult_reports/${COUNT}.xcresult"
+            COUNT=$((COUNT + 1))
+          done
+        else
+          echo "No xcresult bundles found in logs directory"
+        fi
+
+    - name: Generate test report
+      uses: slidoapp/xcresulttool@v3.1.0
+      with:
+        path: |
+          ./xcresult_reports/1.xcresult
+        show-passed-tests: ${{ inputs.show-passed-tests }}
+        upload-bundles: 'never'
+        show-code-coverage: false
+      continue-on-error: true
+
+    - name: Cleanup xcresult reports
+      shell: bash
+      run: |
+        rm -rf ./xcresult_reports
 
     - name: Upload logs
       continue-on-error: true
