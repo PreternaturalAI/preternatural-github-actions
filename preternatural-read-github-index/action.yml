@@ -1,0 +1,97 @@
+name: 'Preternatural Read Github Index Action'
+description: 'Read configurations from a Github Index repository'
+inputs:
+  github-index-repo:
+    description: 'GitHub repository in the format {owner}/{repo}'
+    required: true
+  github-index-read-only-pat:
+    description: 'GitHub Personal Access Token with read-only access to the Github Index repository'
+    required: true
+outputs:
+  xcode-versions:
+    description: 'Array of Xcode versions'
+    value: ${{ steps.parse-github-index.outputs.xcode-versions }}
+  runners:
+    description: 'Array of runners to use'
+    value: ${{ steps.parse-github-index.outputs.runners }}
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout Github Index
+      uses: actions/checkout@v3
+      with:
+        repository: ${{ inputs.github-index-repo }}
+        token: ${{ inputs.github-index-read-only-pat }}
+        path: github-index
+    
+    - name: Check if defaults.json exists
+      shell: bash
+      run: |
+        if [ ! -f github-index/defaults.json ]; then
+          echo "::error::defaults.json not found in the Github Index repository"
+          exit 1
+        fi
+    
+    - name: Parse Github Index
+      id: parse-github-index
+      shell: bash
+      run: |
+        REPO_NAME=$GITHUB_REPOSITORY
+        
+        # Read defaults.json
+        DEFAULTS_JSON=$(cat github-index/defaults.json)
+        
+        # Extract Xcode versions
+        MAIN_XCODE=$(echo "$DEFAULTS_JSON" | jq -r '.repeatableGitHubActionsWithNoOutputsConfiguration.xcodeVersions.main')
+        OTHER_XCODES=$(echo "$DEFAULTS_JSON" | jq -r '.repeatableGitHubActionsWithNoOutputsConfiguration.xcodeVersions.other | join(",")' | sed 's/,/","/g')
+        XCODE_VERSIONS="[\"$MAIN_XCODE\",\"$OTHER_XCODES\"]"
+        
+        # Find matching runner configuration
+        FOUND_MATCH=false
+        RUNNERS="[\"macos-latest\"]"
+        
+        # Properly extract the repository patterns as a JSON array first
+        REPO_PATTERNS_JSON=$(echo "$DEFAULTS_JSON" | jq -r '.repeatableGitHubActionsWithNoOutputsConfiguration.runnersByRepository | keys')
+        
+        # Loop through each repository glob pattern
+        while read -r PATTERN; do
+          # Skip empty lines
+          if [ -z "$PATTERN" ]; then
+            continue
+          fi
+          
+          # Remove surrounding quotes if present
+          PATTERN=$(echo "$PATTERN" | sed 's/^"//;s/"$//')
+          
+          # Handle the asterisk pattern correctly
+          if [ "$PATTERN" = "*" ]; then
+            BASH_PATTERN=".*"
+          else
+            # Convert GitHub glob pattern to bash regex pattern
+            # Replace * with a regex that matches anything except /
+            BASH_PATTERN=$(echo "$PATTERN" | sed 's/\*/[^\/]*/g')
+          fi
+          
+          # Ensure we have a valid pattern before attempting to match
+          if [ -n "$BASH_PATTERN" ]; then
+            if [[ "$REPO_NAME" =~ $BASH_PATTERN ]]; then
+              FOUND_MATCH=true
+              
+              # Verify pattern exists in JSON before accessing
+              if echo "$DEFAULTS_JSON" | jq -e ".repeatableGitHubActionsWithNoOutputsConfiguration.runnersByRepository[\"$PATTERN\"]" > /dev/null; then
+                RUNNER_VALUES=$(echo "$DEFAULTS_JSON" | jq -r ".repeatableGitHubActionsWithNoOutputsConfiguration.runnersByRepository[\"$PATTERN\"] | join(\",\")" | sed 's/,/","/g')
+                RUNNERS="[\"$RUNNER_VALUES\"]"
+                echo "Using runners from pattern: $PATTERN"
+                break
+              else
+                echo "Warning: Pattern '$PATTERN' matched but not found in JSON structure"
+              fi
+            fi
+          fi
+        done < <(echo "$REPO_PATTERNS_JSON" | jq -r '.[]')
+        
+        echo "xcode-versions=$XCODE_VERSIONS" >> $GITHUB_OUTPUT
+        echo "runners=$RUNNERS" >> $GITHUB_OUTPUT
+        
+        echo "Selected Xcode Versions: $XCODE_VERSIONS"
+        echo "Selected Runners: $RUNNERS"

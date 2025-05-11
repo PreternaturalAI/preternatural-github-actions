@@ -10,6 +10,10 @@ inputs:
     description: 'Whether to show the details of passed tests in the report'
     required: false
     default: 'false'
+  xcode-version:
+    description: 'Xcode version to display in test report title'
+    required: false
+    default: ''
 
 runs:
   using: 'composite'
@@ -47,7 +51,15 @@ runs:
           ZIP_NAME="${{ inputs.zip-name }}.zip"
         else
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-          ZIP_NAME="logs-${TIMESTAMP}.zip"
+          
+          # Format Xcode version for the filename
+          if [ -n "${{ inputs.xcode-version }}" ]; then
+            # Replace dots with underscores in xcode version (e.g., 16.3 -> 16_3)
+            XCODE_VERSION=$(echo "${{ inputs.xcode-version }}" | sed 's/\./_/g')
+            ZIP_NAME="xcode_${XCODE_VERSION}_logs_${TIMESTAMP}.zip"
+          else
+            ZIP_NAME="logs_${TIMESTAMP}.zip"
+          fi
         fi
         zip -q -r "../$ZIP_NAME" ./*
         cd ..
@@ -93,6 +105,7 @@ runs:
         show-passed-tests: ${{ inputs.show-passed-tests }}
         upload-bundles: 'never'
         show-code-coverage: false
+        title: ${{ inputs.xcode-version != '' && format('Xcode Logs ({0})', inputs.xcode-version) || 'Xcode Logs' }}
       continue-on-error: true
 
     - name: Cleanup xcresult reports
