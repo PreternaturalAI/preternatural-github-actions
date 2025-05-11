@@ -4,7 +4,7 @@ inputs:
   xcode-version:
     description: 'Xcode version to use'
     required: false
-    default: '16.2'
+    default: 'latest-stable'
   platforms:
     description: 'Target platforms (array of: iOS, macOS, tvOS, watchOS, visionOS, all)'
     required: false
@@ -63,8 +63,9 @@ runs:
       uses: cirruslabs/cache/restore@v4
       with:
         path: "~/Library/Developer/Xcode/DerivedData"
-        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-xcode-${{ inputs.xcode-version }}-derived-data-${{ hashFiles('**/*') }}
         restore-keys: |
+          ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-xcode-${{ inputs.xcode-version }}-derived-data
           ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data
 
     - name: Execute preternatural build command
@@ -128,13 +129,15 @@ runs:
     - name: Upload logs
       if: ${{ !env.ACT }}
       uses: PreternaturalAI/preternatural-github-actions/preternatural-upload-logs@main
+      with:
+        xcode-version: ${{ inputs.xcode-version }}
 
     - name: Save DerivedData Cache
       if: ${{ steps.build.outputs.build_succeeded == 'true' && env.ACT != 'true' }}
       uses: cirruslabs/cache/save@v4
       with:
         path: "~/Library/Developer/Xcode/DerivedData"
-        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-derived-data-${{ hashFiles('**/*') }}
+        key: ${{ runner.os }}-${{ github.repository }}-${{ github.workflow }}-${{ github.ref_name }}-xcode-${{ inputs.xcode-version }}-derived-data-${{ hashFiles('**/*') }}
 
     - name: Check build status and fail if necessary
       if: steps.build.outputs.build_succeeded != 'true'
